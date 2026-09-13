@@ -72,7 +72,7 @@ class SoundEngine {
     this.engineGain.gain.setValueAtTime(0.25, this.ctx.currentTime);
 
     // Filter for deep diesel bus rumble
-    this.engineFilter = this.ctx.createFilter();
+    this.engineFilter = this.ctx.createBiquadFilter();
     this.engineFilter.type = 'lowpass';
     this.engineFilter.frequency.setValueAtTime(250, this.ctx.currentTime);
     this.engineFilter.Q.setValueAtTime(3.5, this.ctx.currentTime);
@@ -112,7 +112,7 @@ class SoundEngine {
     this.tireGain = this.ctx.createGain();
     this.tireGain.gain.setValueAtTime(0, this.ctx.currentTime);
 
-    this.tireFilter = this.ctx.createFilter();
+    this.tireFilter = this.ctx.createBiquadFilter();
     this.tireFilter.type = 'bandpass';
     this.tireFilter.frequency.setValueAtTime(1400, this.ctx.currentTime);
     this.tireFilter.Q.setValueAtTime(4.0, this.ctx.currentTime);
@@ -183,7 +183,7 @@ class SoundEngine {
     try {
       const source = this.ctx.createBufferSource();
       source.buffer = this.airBrakeBuffer;
-      const filter = this.ctx.createFilter();
+      const filter = this.ctx.createBiquadFilter();
       filter.type = 'bandpass';
       filter.frequency.value = 2200;
       filter.Q.value = 1.8;
@@ -222,7 +222,7 @@ class SoundEngine {
     if (!this.ctx || !this.airBrakeBuffer) return;
     const source = this.ctx.createBufferSource();
     source.buffer = this.airBrakeBuffer;
-    const filter = this.ctx.createFilter();
+    const filter = this.ctx.createBiquadFilter();
     filter.type = 'highpass';
     filter.frequency.value = 3000;
     const gain = this.ctx.createGain();
@@ -249,7 +249,7 @@ class SoundEngine {
       this.hornOsc1.frequency.setValueAtTime(370, this.ctx.currentTime); // Low horn
       this.hornOsc2.frequency.setValueAtTime(440, this.ctx.currentTime); // High horn
 
-      const filter = this.ctx.createFilter();
+      const filter = this.ctx.createBiquadFilter();
       filter.type = 'lowpass';
       filter.frequency.setValueAtTime(1600, this.ctx.currentTime);
 
@@ -293,6 +293,77 @@ class SoundEngine {
       gain.connect(this.ctx.destination);
       osc.start();
       osc.stop(this.ctx.currentTime + 0.05);
+    } catch (e) {}
+  }
+
+  public playEngineStart() {
+    if (!this.initialized || !this.ctx || this.isMuted) return;
+    try {
+      const now = this.ctx.currentTime;
+      // Starter motor cranking noise
+      const crankOsc = this.ctx.createOscillator();
+      const crankGain = this.ctx.createGain();
+      crankOsc.type = 'sawtooth';
+      crankOsc.frequency.setValueAtTime(16, now);
+      crankOsc.frequency.linearRampToValueAtTime(32, now + 0.6);
+
+      crankGain.gain.setValueAtTime(0.2, now);
+      crankGain.gain.exponentialRampToValueAtTime(0.01, now + 0.85);
+
+      crankOsc.connect(crankGain);
+      crankGain.connect(this.ctx.destination);
+      crankOsc.start(now);
+      crankOsc.stop(now + 0.9);
+
+      // Ignition roar
+      setTimeout(() => {
+        if (!this.ctx) return;
+        const revOsc = this.ctx.createOscillator();
+        const revGain = this.ctx.createGain();
+        revOsc.type = 'triangle';
+        revOsc.frequency.setValueAtTime(60, this.ctx.currentTime);
+        revOsc.frequency.exponentialRampToValueAtTime(140, this.ctx.currentTime + 0.3);
+        revOsc.frequency.exponentialRampToValueAtTime(45, this.ctx.currentTime + 0.8);
+
+        revGain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+        revGain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.85);
+
+        revOsc.connect(revGain);
+        revGain.connect(this.ctx.destination);
+        revOsc.start();
+        revOsc.stop(this.ctx.currentTime + 0.9);
+      }, 500);
+    } catch (e) {}
+  }
+
+  public playEngineStop() {
+    if (!this.initialized || !this.ctx || this.isMuted) return;
+    try {
+      const now = this.ctx.currentTime;
+      if (this.engineGain) {
+        this.engineGain.gain.setTargetAtTime(0, now, 0.4);
+      }
+    } catch (e) {}
+  }
+
+  public playLapFinish() {
+    if (!this.initialized || !this.ctx || this.isMuted) return;
+    try {
+      const now = this.ctx.currentTime;
+      const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6 arpeggio
+      notes.forEach((freq, idx) => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+        gain.gain.setValueAtTime(0.2, now + idx * 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.5);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now + idx * 0.12);
+        osc.stop(now + idx * 0.12 + 0.55);
+      });
     } catch (e) {}
   }
 

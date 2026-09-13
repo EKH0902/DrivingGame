@@ -1,5 +1,5 @@
 {
-  "name": "Remix 3D 버스 드라이빙 시뮬레이터",
+  "name": "3D 버스 드라이빙 시뮬레이터",
   "description": "현실적인 도로 환경과 5단 수동 변속기, 정밀한 조향 및 드리프트 감각을 제공하는 3D 버스 운전 연습 시뮬레이터",
   "requestFramePermissions": [],
   "majorCapabilities": [
